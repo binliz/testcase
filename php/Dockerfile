@@ -1,14 +1,30 @@
+FROM composer:2.2 as builder
+ENV COMPOSER_HOME /composer
+ENV PATH ./vendor/bin:/composer/vendor/bin:$PATH
+ENV COMPOSER_ALLOW_SUPERUSER 1
+WORKDIR /tmp/
+
+COPY ./src/composer.* .
+
+RUN composer install \
+    --ignore-platform-reqs \
+    --no-interaction \
+    --no-plugins \
+    --no-scripts \
+    --prefer-dist
+
+
 FROM php:8.2-fpm-alpine
 
 ARG UID
 ARG GID
 ARG USER
 
+ENV COMPOSER_ALLOW_SUPERUSER 1
 ENV UID=${UID}
 ENV GID=${GID}
 ENV USER=${USER}
 
-# Dialout group in alpine linux conflicts with MacOS staff group's gid, whis is 20. So we remove it.
 RUN delgroup dialout
 
 # Creating user and group
@@ -16,42 +32,14 @@ RUN addgroup -g ${GID} --system ${USER}
 RUN adduser -G ${USER} --system -D -s /bin/sh -u ${UID} ${USER}
 
 # Setup extensions
-RUN apk add --no-cache \
-      freetype \
-      libjpeg-turbo \
-      libpng \
-      freetype-dev \
-      libjpeg-turbo-dev \
-      libpng-dev \
-    && docker-php-ext-configure gd \
-      --with-freetype=/usr/include/ \
-      --with-jpeg=/usr/include/ \
-    && docker-php-ext-install -j$(nproc) gd \
-    && docker-php-ext-enable gd \
-    && apk add --no-cache linux-headers \
-    && docker-php-ext-install sockets \
-    && apk del --no-cache linux-headers \
-    && apk del --no-cache \
-      freetype-dev \
-      libjpeg-turbo-dev \
-      libpng-dev \
-    && rm -rf /tmp/* && \
-    apk add libzip-dev && \
+RUN apk add libzip-dev && \
     docker-php-ext-install mysqli pdo pdo_mysql zip bcmath exif && \
     apk add --no-cache pcre-dev $PHPIZE_DEPS \
         && pecl install redis \
         && docker-php-ext-enable redis.so && \
     apk add --update --no-cache libmemcached-dev && \
     pecl install memcached && docker-php-ext-enable memcached && \
-    apk add --no-cache --virtual .build-deps \
-        libxml2-dev \
-        shadow \
-        autoconf \
-        g++ \
-        make \
-    && apk add --no-cache imagemagick-dev imagemagick \
-    && pecl install imagick-beta \
-    && apk del .build-deps && docker-php-ext-enable imagick \
+    apk add --no-cache --virtual .build-deps libxml2-dev shadow autoconf g++ make \
     && apk --update --no-cache add build-base autoconf rabbitmq-c-dev \
     && pecl install amqp && docker-php-ext-enable amqp
 
@@ -62,15 +50,13 @@ sed -i 's/;session.save_path = "\/tmp"/session.save_path = "memcached:11211"/g' 
 RUN sed -i "s/user = www-data/user = '${USER}'/g" /usr/local/etc/php-fpm.d/www.conf
 RUN sed -i "s/group = www-data/group = '${USER}'/g" /usr/local/etc/php-fpm.d/www.conf
 
-
-COPY --from=composer:2.2  /usr/bin/composer /usr/bin/composer
-# Remove Cache
-RUN rm -rf /var/cache/apk/*
-
 WORKDIR /app
-COPY ./src .
-RUN /usr/bin/composer install
 
-CMD ["php-fpm"]
+COPY ./src /app
+COPY --from=builder /usr/bin/composer /usr/bin/composer
+COPY --from=builder /tmp/vendor /app/vendor
 
-EXPOSE 9000
+RUN /usr/bin/composer dump-autoload
+
+USER ${USER}
+
