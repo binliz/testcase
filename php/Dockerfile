@@ -39,9 +39,6 @@ RUN apk add libzip-dev && \
         && docker-php-ext-enable redis.so && \
     apk add --update --no-cache libmemcached-dev && \
     pecl install memcached && docker-php-ext-enable memcached && \
-    apk add --no-cache --virtual .build-deps libxml2-dev shadow autoconf g++ make \
-    && apk --update --no-cache add build-base autoconf rabbitmq-c-dev \
-    && pecl install amqp && docker-php-ext-enable amqp
 
 RUN cp $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini && \
 sed -i 's/session.save_handler = files/session.save_handler = memcached/g' $PHP_INI_DIR/php.ini && \
