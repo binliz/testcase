@@ -123,6 +123,8 @@ services:
     image: memcached:1.6.17-alpine
     restart: always
     command: [ "-m", "256" ]
+    networks:
+      laravel-testcase-networks:
   appsetup:
     build:
       context: .
