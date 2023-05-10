@@ -14,7 +14,7 @@ RUN composer install \
     --prefer-dist
 
 
-FROM php:8.2-fpm-alpine
+FROM php:8.2-fpm-alpine as phplayer
 
 ARG UID
 ARG GID
@@ -38,7 +38,7 @@ RUN apk add libzip-dev && \
         && pecl install redis \
         && docker-php-ext-enable redis.so && \
     apk add --update --no-cache libmemcached-dev && \
-    pecl install memcached && docker-php-ext-enable memcached && \
+    pecl install memcached && docker-php-ext-enable memcached
 
 RUN cp $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini && \
 sed -i 's/session.save_handler = files/session.save_handler = memcached/g' $PHP_INI_DIR/php.ini && \
@@ -47,6 +47,7 @@ sed -i 's/;session.save_path = "\/tmp"/session.save_path = "memcached:11211"/g' 
 RUN sed -i "s/user = www-data/user = '${USER}'/g" /usr/local/etc/php-fpm.d/www.conf
 RUN sed -i "s/group = www-data/group = '${USER}'/g" /usr/local/etc/php-fpm.d/www.conf
 
+FROM phplayer
 WORKDIR /app
 
 COPY ./src /app

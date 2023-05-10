@@ -28,7 +28,8 @@ services:
         - GID=${GID:-1000}
         - USER=${USER:-laravel}
     volumes:
-      - ./srv:/app
+      - ./src:/app
+      - /app/vendor
     restart: always
     networks:
       laravel-testcase-networks:
@@ -51,13 +52,13 @@ services:
     restart: always
     tty: true
     stdin_open: true
-    command: /bin/sh -c "php ./artisan queue:listen --timeout=0 --delay=0 --memory=512 --queue=\"default\""
+    command: /bin/sh -c "php /app/artisan queue:listen --timeout=0 --delay=0 --memory=512 --queue=\"default\""
     links:
-      - appsetup
       - db
       - fpm
     volumes:
-      - ./scr:/app
+      - ./src:/app
+      - /app/vendor
     deploy:
       replicas: 3
     env_file:
@@ -73,6 +74,7 @@ services:
       - 5173
     volumes:
       - ./src:/app
+      - /app/node_modules
     tty: true
     env_file:
       - .env
@@ -87,9 +89,9 @@ services:
       - 6001
     volumes:
       - ./socket:/app
+      - /app/node_modules
     tty: true
     links:
-      - fpm
       - redis
     env_file:
       - .env
@@ -139,6 +141,7 @@ services:
       - db
     volumes:
       - ./src:/app
+      - /app/vendor
     env_file:
       - .env
 networks:

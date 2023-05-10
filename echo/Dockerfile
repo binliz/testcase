@@ -1,12 +1,20 @@
-FROM node:lts-alpine
+FROM node:18-alpine
+
+RUN npm i npm@latest -g
 
 WORKDIR /app
-RUN npm install -g socket.io
-RUN npm install -g ioredis
+RUN chown node:node ./
+USER node
 
-COPY socket/package.json socket/package-lock.json ./
-RUN npm install
-COPY socket/ .
+ARG NODE_ENV=production
+ENV NODE_ENV $NODE_ENV
+
+COPY --chown=node:node socket/package*.json .
+
+RUN npm ci
+RUN npm install --no-optional && npm cache clean --force
+COPY --chown=node:node socket/ .
+
 EXPOSE 6001
 
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
